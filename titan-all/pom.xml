@@ -3,7 +3,7 @@
     <parent>
         <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>0.4.0-SNAPSHOT</version>
+        <version>0.4.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>titan-all</artifactId>
@@ -21,39 +21,50 @@
     <dependencies>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
+            <artifactId>titan-core</artifactId>
+            <version>${project.version}</version>
+            <classifier>${titan.classifier}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-cassandra</artifactId>
             <version>${project.version}</version>
+            <classifier>${titan.classifier}</classifier>
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-berkeleyje</artifactId>
             <version>${project.version}</version>
+            <classifier>${titan.classifier}</classifier>
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-hbase</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.thinkaurelius.titan</groupId>
-            <artifactId>titan-persistit</artifactId>
-            <version>${project.version}</version>
+            <classifier>${titan.classifier}</classifier>
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-es</artifactId>
             <version>${project.version}</version>
+            <classifier>${titan.classifier}</classifier>
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-lucene</artifactId>
             <version>${project.version}</version>
+            <classifier>${titan.classifier}</classifier>
+        </dependency>
+        <dependency>
+            <groupId>com.thinkaurelius.titan</groupId>
+            <artifactId>titan-hazelcast</artifactId>
+            <version>${project.version}</version>
+            <classifier>${titan.classifier}</classifier>
         </dependency>
     </dependencies>
 
     <build>
         <directory>${basedir}/target</directory>
-        <finalName>${project.artifactId}-${project.version}</finalName>
         <resources>
             <resource>
                 <directory>${basedir}/src/main/resources</directory>
@@ -62,7 +73,7 @@
         </resources>
 
         <plugins>
-            <!-- Disable unnecessary plugins -->
+            <!-- Disable unused plugins -->
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
                 <executions>
@@ -97,5 +108,26 @@
             <!-- Done disabling unnecessary plugins -->
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>jre7</id>
+            
+            <activation>
+                <property>
+                    <name>!targetjre</name>
+                </property>
+            </activation>
+            
+            <dependencies>
+                <dependency>
+                    <groupId>com.thinkaurelius.titan</groupId>
+                    <artifactId>titan-persistit</artifactId>
+                    <version>${project.version}</version>
+                    <classifier>${titan.classifier}</classifier>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
  

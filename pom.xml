@@ -7,27 +7,13 @@
     </parent>
     <groupId>com.thinkaurelius.titan</groupId>
     <artifactId>titan</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <version>0.4.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <prerequisites>
         <maven>2.2.1</maven>
     </prerequisites>
     <name>Titan: Distributed Graph Database</name>
     <url>http://thinkaurelius.github.com/titan/</url>
-
-    <modules>
-        <module>titan-core</module>
-        <module>titan-test</module>
-        <module>titan-berkeleyje</module>
-        <module>titan-cassandra</module>
-        <module>titan-persistit</module>
-        <module>titan-hbase</module>
-        <module>titan-es</module>
-        <module>titan-lucene</module>
-        <module>titan-all</module>
-        <module>titan-site</module>
-        <module>titan-dist</module>
-    </modules>
 
     <description>
         Titan is a distributed graph database optimized for processing massive-scale graphs represented over a machine
@@ -61,20 +47,21 @@
     <inceptionYear>2012</inceptionYear>
     <licenses>
         <license>
-            <name>Apache 2</name>
-            <url>http://www.opensource.org/licenses/Apache-2.0</url>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
     <scm>
         <connection>scm:git:git@github.com:thinkaurelius/titan.git</connection>
         <developerConnection>scm:git:git@github.com:thinkaurelius/titan.git</developerConnection>
         <url>git@github.com:thinkaurelius/titan.git</url>
-    </scm>
+      <tag>HEAD</tag>
+  </scm>
     <properties>
-        <titan.version>0.4.0-SNAPSHOT</titan.version>
-        <titan.compatible.versions>0.3.2,0.3.1,0.3.0</titan.compatible.versions>
+        <titan.compatible.versions>0.4.0</titan.compatible.versions>
         <tinkerpop.version>2.4.0</tinkerpop.version>
         <junit.version>4.11</junit.version>
+        <cassandra.version>1.2.2</cassandra.version>
         <metrics.version>3.0.0-BETA3</metrics.version>
         <metrics2.version>2.1.2</metrics2.version>
         <metrics3.version>3.0.0-BETA3</metrics3.version>
@@ -89,16 +76,28 @@
         <kuali.s3.wagon.version>1.1.20</kuali.s3.wagon.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <cassandra.dir>${project.build.directory}/cassandra-tmp/workdir</cassandra.dir>
-        <cassandra.ordered.dir>${project.build.directory}/cassandra-ordered-tmp/workdir</cassandra.ordered.dir>
         <titan.testdir>${project.build.directory}/titan-test</titan.testdir>
         <gpg.skip>false</gpg.skip>
-        <!-- Required for PMD plugin. Used for compiler plugin -->
-        <targetJdk>1.7</targetJdk>
-        <perf.jvm.opts></perf.jvm.opts>
-        <test.jvm.opts>-Xms256m -Xmx756m ${test.extra.jvm.opts} ${jacoco.opts}</test.jvm.opts>
-        <test.extra.jvm.opts></test.extra.jvm.opts>
+        <perf.jvm.opts />
+        <default.test.jvm.opts>-Xms256m -Xmx768m ${test.extra.jvm.opts}</default.test.jvm.opts>
+        <mem.jvm.opts>-Xms256m -Xmx256m -XX:+HeapDumpOnOutOfMemoryError ${test.extra.jvm.opts}</mem.jvm.opts>
+        <test.extra.jvm.opts />
+        <titan.classifier />
     </properties>
+    <modules>
+        <module>titan-core</module>
+        <module>titan-test</module>
+        <module>titan-berkeleyje</module>
+        <module>titan-cassandra</module>
+        <module>titan-hbase</module>
+        <module>titan-es</module>
+        <module>titan-lucene</module>
+        <module>titan-hazelcast</module>
+        <module>titan-rexster</module>
+        <module>titan-all</module>
+        <module>titan-site</module>
+        <module>titan-dist</module>
+    </modules>
     <build>
         <directory>${basedir}/target</directory>
         <plugins>
@@ -113,7 +112,7 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <DependencyConvergence/>
+                                <DependencyConvergence />
                             </rules>
                         </configuration>
                     </execution>
@@ -158,12 +157,11 @@
                     -->
                     <releaseProfiles>aurelius-release</releaseProfiles>
 
-                    <!--
-                      I am a criminal.
+                    <!-- Keep all submodules at same version as parent -->
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
 
-                      (applies to both release:prepare and :perform)
-                    -->
-                    <arguments>-DskipTests=true</arguments>
+                    <!-- applies to both release:prepare and :perform -->
+                    <arguments>-DskipTests=true -P!release-plugin-hack</arguments>
                 </configuration>
             </plugin>
 
@@ -174,22 +172,30 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>2.5.1</version>
                     <configuration>
-                        <source>1.6</source>
-                        <target>1.7</target>
+                        <source>${compiler.source}</source>
+                        <target>${compiler.target}</target>
+                        <compilerArgument>${compiler.args}</compilerArgument>
                     </configuration>
                 </plugin>
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>2.15</version>
                     <configuration>
-                        <argLine>${test.jvm.opts}</argLine>
+                        <argLine>${default.test.jvm.opts}</argLine>
                         <runOrder>alphabetical</runOrder>
                         <excludes>
                             <exclude>**/External*.java</exclude>
                             <exclude>**/*PerformanceTest.java</exclude>
                             <exclude>**/*ConcurrentTest.java</exclude>
                         </excludes>
+                        <excludedGroups>
+                            com.thinkaurelius.titan.testcategory.MemoryTests,com.thinkaurelius.titan.testcategory.PerformanceTests
+                        </excludedGroups>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>2.15</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-site-plugin</artifactId>
@@ -205,7 +211,7 @@
                         </execution>
                     </executions>
                 </plugin>
-                <plugin> 
+                <plugin>
                     <artifactId>maven-deploy-plugin</artifactId>
                     <version>2.7</version>
                 </plugin>
@@ -248,6 +254,11 @@
                 <plugin>
                     <artifactId>maven-gpg-plugin</artifactId>
                     <version>1.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>properties-maven-plugin</artifactId>
+                    <version>1.0-alpha-2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
@@ -313,7 +324,6 @@
             </plugins>
         </pluginManagement>
     </build>
-
     <dependencyManagement>
         <dependencies>
             <!-- Jackson 2.x -->
@@ -377,6 +387,11 @@
                 <groupId>commons-logging</groupId>
                 <artifactId>commons-logging</artifactId>
                 <version>1.1.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-math</artifactId>
+                <version>2.2</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.avro</groupId>
@@ -582,6 +597,16 @@
                 <version>${metrics3.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.codahale.metrics</groupId>
+                <artifactId>metrics-ganglia</artifactId>
+                <version>${metrics3.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.codahale.metrics</groupId>
+                <artifactId>metrics-graphite</artifactId>
+                <version>${metrics3.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>com.github.stephenc.high-scale-lib</groupId>
                 <artifactId>high-scale-lib</artifactId>
                 <version>1.1.2</version>
@@ -590,6 +615,29 @@
                 <groupId>org.apache.thrift</groupId>
                 <artifactId>libthrift</artifactId>
                 <version>0.7.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.cassandra</groupId>
+                <artifactId>cassandra-all</artifactId>
+                <version>${cassandra.version}</version>
+                <!-- Using avro-ipc 1.5.3 caused the following when opening the graphdb:
+                     java.lang.NoSuchMethodError: org.apache.avro.io.DecoderFactory.configureDirectDecoder(Z)Lorg/apache/avro/io/DecoderFactory
+    
+                     Stock avro 1.4.0 or 1.4.1 might work, but I'd like to see
+                     what customizations were made in the cassandra copy of avro
+                     before trying to drop it for the stock artifact...
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.cassandra.deps</groupId>
+                        <artifactId>avro</artifactId>
+                    </exclusion>
+                </exclusions>
+                -->
+            </dependency>
+            <dependency>
+                <groupId>org.apache.cassandra</groupId>
+                <artifactId>cassandra-thrift</artifactId>
+                <version>${cassandra.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.javassist</groupId>
@@ -608,8 +656,78 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <dependencies>
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
     <profiles>
         <profile>
+            <id>jre6</id>
+
+            <activation>
+                <property>
+                    <name>targetjre</name>
+                    <value>6</value>
+                </property>
+            </activation>
+
+            <properties>
+                <compiler.source>1.6</compiler.source>
+                <compiler.target>1.6</compiler.target>
+                <compiler.args>-Xbootclasspath:/opt/jdk1.6.0_45/jre/lib/rt.jar</compiler.args>
+                <titan.classifier>jre6</titan.classifier>
+            </properties>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <configuration>
+                            <classifier>jre6</classifier>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>jre7</id>
+
+            <activation>
+                <property>
+                    <name>!targetjre</name>
+                </property>
+            </activation>
+
+            <properties>
+                <compiler.source>1.6</compiler.source>
+                <compiler.target>1.7</compiler.target>
+            </properties>
+
+            <modules>
+                <module>titan-persistit</module>
+            </modules>
+        </profile>
+
+        <profile>
+
             <id>sonatype-oss-release</id>
             <build>
                 <plugins>
@@ -703,22 +821,6 @@
                 </plugins>
             </build>
         </profile>
-        
-        <profile>
-            <id>default-props</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <properties>
-                <!-- When I put this empty default value in the pom's
-                     top-level <properties>, it overwrites the jacoco
-                     plugin's generated value.  When I put it here,
-                     the jacoco plugin's generated value overrides the
-                     empty default.  So here it is, even though it
-                     looks kind of weird. -->
-                <jacoco.opts></jacoco.opts>
-            </properties>
-        </profile>
 
         <profile>
             <id>sonar-upload</id>
@@ -739,7 +841,7 @@
                         <inherited>false</inherited>
                     </plugin>
                 </plugins>
-	    </build>
+            </build>
         </profile>
 
         <profile>
@@ -747,140 +849,192 @@
             <activation>
                 <activeByDefault>false</activeByDefault>
             </activation>
+
             <build>
-                    <plugins>
-                        <plugin>
-                            <artifactId>maven-resources-plugin</artifactId>
-                            <executions>
-                                <execution>
-                                    <id>copy-sources-for-jacoco</id>
-                                    <phase>process-resources</phase>
-                                    <goals>
-                                        <goal>copy-resources</goal>
-                                    </goals>
-                                    <configuration>
-                                        <outputDirectory>${project.build.directory}/jacoco-sources</outputDirectory>
-                                        <resources>
-                                            <resource>
-                                                <directory>${project.basedir}/src/main/java/</directory>
-                                                <filtering>false</filtering>
-                                            </resource>
-                                        </resources>
-                                    </configuration>
-                                </execution>
-                                <execution>
-                                    <id>copy-classes-for-jacoco</id>
-                                    <phase>process-classes</phase>
-                                    <goals>
-                                        <goal>copy-resources</goal>
-                                    </goals>
-                                    <configuration>
-                                        <outputDirectory>${project.build.directory}/jacoco-classes</outputDirectory>
-                                        <resources>
-                                            <resource>
-                                                <directory>${project.build.directory}/classes/</directory>
-                                                <filtering>false</filtering>
-                                            </resource>
-                                        </resources>
-                                    </configuration>
-                                </execution>
-                            </executions>
-                        </plugin>
-                       <plugin>
-                            <artifactId>maven-dependency-plugin</artifactId>
-                            <executions>
-                               <!-- Unpack all dependency class and source files for use by JaCoCo -->
-                               <execution>
-                                   <id>unpack-dependency-sources</id>
-                                   <phase>generate-resources</phase>
-                                   <goals>
-                                       <goal>unpack-dependencies</goal>
-                                   </goals>
-                                   <configuration>
-                                       <classifier>sources</classifier>
-                                       <outputDirectory>${project.build.directory}/jacoco-sources</outputDirectory>
-                                       <includeGroupIds>${project.groupId}</includeGroupIds>
-	                	           <excludeArtifactIds>titan-test</excludeArtifactIds>
-                                   </configuration>
-                               </execution> 
-                               <execution>
-                                    <id>unpack-dependency-classes</id>
-                                    <phase>generate-resources</phase>
-                                    <goals>
-                                        <goal>unpack-dependencies</goal>
-                                    </goals>
-                                    <configuration>
-                                        <classifier/> <!-- empty classifier requests the artifact containing classes -->
-                                        <outputDirectory>${project.build.directory}/jacoco-classes</outputDirectory>
-                                        <includeGroupIds>${project.groupId}</includeGroupIds>
-	                		    <excludeArtifactIds>titan-test</excludeArtifactIds>
-                                    </configuration>
-                                </execution>
-                             </executions>
-                        </plugin>
-                        <plugin>
-                             <groupId>org.jacoco</groupId>
-                             <artifactId>jacoco-maven-plugin</artifactId>
-                             <executions>
-                                 <execution> 
-                                     <id>prepare-jacoco-agent</id>
-                                     <phase>test-compile</phase>
-                                     <goals>
-                                         <goal>prepare-agent</goal>
-                                     </goals>
-                                     <configuration>
-                                         <destFile>../target/jacoco-combined.exec</destFile>
-                                         <append>true</append>
-                                         <propertyName>jacoco.opts</propertyName>
-                                     </configuration>
-                                 </execution>
-                             </executions>
-                        </plugin>
-                        <plugin>
-                            <!-- The Maven JaCoCo plugin doesn't allow
-                                 configuration of sourcefiles and destfiles
-                                 directories.  The Ant JaCoCo task does.  That's
-                                 why we use antrun here for JaCoCo instead of
-                                 JaCoCo's Maven plugin. -->
-                            <artifactId>maven-antrun-plugin</artifactId>
-                            <executions>
-                                <execution>
-                                    <id>default-cli</id>
-                                    <phase>post-integration-test</phase>
-                                    <goals>
-                                        <goal>run</goal>
-                                    </goals>
-                                    <configuration>
-                                        <target>
-                                            <taskdef name="report" classname="org.jacoco.ant.ReportTask" classpathref="maven.plugin.classpath" />
-                                                <report>
-                                                    <executiondata>
-                                                        <file file="../target/jacoco-combined.exec" />
-                                                    </executiondata>
-                                                    <structure name="Integration test coverage">
-                                                        <classfiles>
-                                                            <fileset dir="${project.build.directory}/jacoco-classes" />
-                                                        u</classfiles>
-                                                        <sourcefiles encoding="UTF-8">
-                                                            <fileset dir="${project.build.directory}/jacoco-sources" />
-                                                        </sourcefiles>
-                                                    </structure>
-                                                    <html destdir="${project.build.directory}/jacoco-report" />
-                                                </report>
-                                        </target>
-                                    </configuration>
-                                </execution>
-                            </executions>
-                            <dependencies>
-                                <dependency>
-                                    <groupId>org.jacoco</groupId>
-                                    <artifactId>org.jacoco.ant</artifactId>
-                                    <version>0.6.2.201302030002</version>
-                                </dependency>
-                            </dependencies>
-                        </plugin>
-                    </plugins>
-	    </build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-test</id>
+                                <configuration>
+                                    <argLine>${default.test.jvm.opts} ${jacoco.opts}</argLine>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-sources-for-jacoco</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}/jacoco-sources</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.basedir}/src/main/java/</directory>
+                                            <filtering>false</filtering>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-classes-for-jacoco</id>
+                                <phase>process-classes</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}/jacoco-classes</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.build.directory}/classes/</directory>
+                                            <filtering>false</filtering>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <!-- Unpack all dependency class and source files for use by JaCoCo -->
+                            <execution>
+                                <id>unpack-dependency-sources</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier>sources</classifier>
+                                    <outputDirectory>${project.build.directory}/jacoco-sources</outputDirectory>
+                                    <includeGroupIds>${project.groupId}</includeGroupIds>
+                                    <excludeArtifactIds>titan-test</excludeArtifactIds>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-dependency-classes</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <classifier />
+                                    <!-- empty classifier requests the artifact containing classes -->
+                                    <outputDirectory>${project.build.directory}/jacoco-classes</outputDirectory>
+                                    <includeGroupIds>${project.groupId}</includeGroupIds>
+                                    <excludeArtifactIds>titan-test</excludeArtifactIds>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>prepare-jacoco-agent</id>
+                                <phase>test-compile</phase>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                                <configuration>
+                                    <destFile>../target/jacoco-combined.exec</destFile>
+                                    <append>true</append>
+                                    <propertyName>jacoco.opts</propertyName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!-- The Maven JaCoCo plugin doesn't allow
+                             configuration of sourcefiles and destfiles
+                             directories.  The Ant JaCoCo task does.  That's
+                             why we use antrun here for JaCoCo instead of
+                             JaCoCo's Maven plugin. -->
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-cli</id>
+                                <phase>post-integration-test</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <taskdef name="report" classname="org.jacoco.ant.ReportTask" classpathref="maven.plugin.classpath" />
+                                        <report>
+                                            <executiondata>
+                                                <file file="../target/jacoco-combined.exec" />
+                                            </executiondata>
+                                            <structure name="Integration test coverage">
+                                                <classfiles>
+                                                    <fileset dir="${project.build.directory}/jacoco-classes" />
+                                                    u
+                                                </classfiles>
+                                                <sourcefiles encoding="UTF-8">
+                                                    <fileset dir="${project.build.directory}/jacoco-sources" />
+                                                </sourcefiles>
+                                            </structure>
+                                            <html destdir="${project.build.directory}/jacoco-report" />
+                                        </report>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.jacoco</groupId>
+                                <artifactId>org.jacoco.ant</artifactId>
+                                <version>0.6.2.201302030002</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>memory-test</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>memory-test</id>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <phase>test</phase>
+                                <configuration>
+                                    <argLine>${mem.jvm.opts}</argLine>
+                                    <reuseForks>false</reuseForks>
+                                    <forkCount>1</forkCount>
+                                    <parallel />
+                                    <threadCount>0</threadCount>
+                                    <perCoreThreadCount>1</perCoreThreadCount>
+                                    <runOrder>alphabetical</runOrder>
+                                    <groups>com.thinkaurelius.titan.testcategory.MemoryTests</groups>
+                                    <excludedGroups />
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>default-test</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
         <profile>
@@ -899,15 +1053,21 @@
                                     <goal>test</goal>
                                 </goals>
                                 <phase>test</phase>
-                                <configuration>
-                                    <argLine>${test.jvm.opts} ${perf.jvm.opts}</argLine>
+                                <configuration combine.self="override">
+                                    <argLine>${default.test.jvm.opts} ${perf.jvm.opts}</argLine>
                                     <reuseForks>false</reuseForks>
                                     <forkCount>1</forkCount>
-                                    <parallel/>
+                                    <parallel />
                                     <threadCount>1</threadCount>
                                     <perCoreThreadCount>1</perCoreThreadCount>
                                     <runOrder>alphabetical</runOrder>
-                                    <groups>com.thinkaurelius.titan.testcategory.PerformanceTests</groups>
+                                    <groups>
+                                        com.thinkaurelius.titan.testcategory.MemoryTests,com.thinkaurelius.titan.testcategory.PerformanceTests
+                                    </groups>
+                                    <excludedGroups />
+                                    <excludes>
+                                        <exclude>**/External*</exclude>
+                                    </excludes>
                                 </configuration>
                             </execution>
                             <execution>
@@ -943,6 +1103,16 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+
+        <profile>
+            <id>release-plugin-hack</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <modules>
+                <module>titan-dist/titan-dist-parent</module>
+            </modules>
         </profile>
     </profiles>
 </project>

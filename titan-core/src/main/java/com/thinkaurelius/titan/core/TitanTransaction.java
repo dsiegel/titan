@@ -108,12 +108,36 @@ public interface TitanTransaction extends TransactionalGraph, KeyIndexableGraph 
      */
     public boolean containsVertex(long vertexid);
 
+    /**
+     * @return
+     * @see com.thinkaurelius.titan.core.TitanGraph#query()
+     */
     public TitanGraphQuery query();
 
+    /**
+     * @return
+     * @see com.thinkaurelius.titan.core.TitanGraph#multiQuery(TitanVertex...)
+     */
     public TitanMultiVertexQuery multiQuery(TitanVertex... vertices);
 
+    /**
+     * Executes a {@link TitanGraphQuery} to retrieve the vertex that has a property matching the key and attribute.
+     * This method assumes that the provided key is unique and will throw an execption otherwise.
+     *
+     * @param key
+     * @param attribute
+     * @return The vertex which has the provided key and value or NULL if it does not exit
+     */
     public TitanVertex getVertex(TitanKey key, Object attribute);
 
+    /**
+     * Executes a {@link TitanGraphQuery} to retrieve the vertex that has a property matching the key and attribute.
+     * This method assumes that the provided key is unique and will throw an execption otherwise.
+     *
+     * @param key
+     * @param attribute
+     * @return The vertex which has the provided key and value or NULL if it does not exit
+     */
     public TitanVertex getVertex(String key, Object attribute);
 
     /**
@@ -125,7 +149,7 @@ public interface TitanTransaction extends TransactionalGraph, KeyIndexableGraph 
      * @param key       key
      * @param attribute attribute value
      * @return All vertices which have a property of the given key with the specified value.
-     * @see TypeMaker#indexed(Class)
+     * @see KeyMaker#indexed(Class)
      */
     public Iterable<TitanVertex> getVertices(TitanKey key, Object attribute);
 
@@ -138,7 +162,7 @@ public interface TitanTransaction extends TransactionalGraph, KeyIndexableGraph 
      * @param key       key
      * @param attribute attribute value
      * @return All edges which have a property of the given key with the specified value.
-     * @see TypeMaker#indexed(Class)
+     * @see KeyMaker#indexed(Class)
      */
     public Iterable<TitanEdge> getEdges(TitanKey key, Object attribute);
 
@@ -191,15 +215,31 @@ public interface TitanTransaction extends TransactionalGraph, KeyIndexableGraph 
     public <T extends TitanType> Iterable<T> getTypes(Class<T> clazz);
 
     /**
-     * Returns a new {@link TypeMaker} instance to create types.
+     * Returns a {@link KeyMaker} instance to define a new {@link TitanKey} with the given name.
+     * By defining types explicitly (rather than implicitly through usage) one can control various
+     * aspects of the key and associated consistency constraints.
      * <p/>
-     * The type constructed with this maker will be created in the context of this transaction.
+     * The key constructed with this maker will be created in the context of this transaction.
      *
-     * @return a type maker linked to this transaction.
-     * @see TypeMaker
-     * @see TitanType
+     * @return a {@link KeyMaker} linked to this transaction.
+     * @see KeyMaker
+     * @see TitanKey
      */
-    public TypeMaker makeType();
+    public KeyMaker makeKey(String name);
+
+    /**
+     * Returns a {@link LabelMaker} instance to define a new {@link TitanLabel} with the given name.
+     * By defining types explicitly (rather than implicitly through usage) one can control various
+     * aspects of the label and associated consistency constraints.
+     * <p/>
+     * The label constructed with this maker will be created in the context of this transaction.
+     *
+     * @return a {@link LabelMaker} linked to this transaction.
+     * @see LabelMaker
+     * @see TitanLabel
+     */
+    public LabelMaker makeLabel(String name);
+
 
     /**
      * Commits and closes the transaction.
