@@ -4,13 +4,20 @@ import com.carrotsearch.hppc.LongArrayList;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.thinkaurelius.titan.core.*;
+import com.thinkaurelius.titan.core.TitanException;
+import com.thinkaurelius.titan.core.TitanKey;
+import com.thinkaurelius.titan.core.TitanProperty;
+import com.thinkaurelius.titan.core.TitanTransaction;
+import com.thinkaurelius.titan.core.TitanType;
 import com.thinkaurelius.titan.diskstorage.Backend;
 import com.thinkaurelius.titan.diskstorage.BackendTransaction;
 import com.thinkaurelius.titan.diskstorage.StaticBuffer;
 import com.thinkaurelius.titan.diskstorage.StorageException;
-import com.thinkaurelius.titan.diskstorage.indexing.IndexQuery;
-import com.thinkaurelius.titan.diskstorage.keycolumnvalue.*;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.Entry;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyIterator;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeyRangeQuery;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.KeySliceQuery;
+import com.thinkaurelius.titan.diskstorage.keycolumnvalue.SliceQuery;
 import com.thinkaurelius.titan.diskstorage.util.BackendOperation;
 import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.graphdb.blueprints.TitanBlueprintsGraph;
@@ -66,20 +73,18 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
 
     public final SliceQuery vertexExistenceQuery;
 
-
     public StandardTitanGraph(GraphDatabaseConfiguration configuration) {
         this.config = configuration;
         this.backend = configuration.getBackend();
         this.maxWriteRetryAttempts = config.getWriteAttempts();
         this.retryStorageWaitTime = config.getStorageWaittime();
 
-
         this.idAssigner = config.getIDAssigner(backend);
         this.idManager = idAssigner.getIDManager();
 
         this.serializer = config.getSerializer();
         this.indexSerializer = new IndexSerializer(this.serializer, this.backend.getIndexInformation());
-        this.edgeSerializer = new EdgeSerializer(this.serializer, this.idManager);
+        this.edgeSerializer = new EdgeSerializer(this.serializer);
         this.vertexExistenceQuery = edgeSerializer.getQuery(SystemKey.VertexState, Direction.OUT, new EdgeSerializer.TypedInterval[0], null).setLimit(1);
 
         isOpen = true;
@@ -132,21 +137,35 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
     /**
      * Begin a BackendTransaction.
      * @param configuration  TransactionConfiguration for new transaction.
+     * @param retriever IndexInfoRetriever for new transaction.
      * @return new BackendTransaction, if possible.
      * @throws TitanException if a new transaction cannot be started.
      */
-    protected BackendTransaction beginBackendTransaction(TransactionConfiguration configuration) {
+    protected BackendTransaction beginBackendTransaction(TransactionConfiguration configuration,
+                                                         IndexSerializer.IndexInfoRetriever retriever)
+        throws TitanException {
         try {
-            return backend.beginTransaction(configuration);
+            return backend.beginTransaction(configuration,retriever);
         }
         catch (StorageException e) {
             throw new TitanException("Could not start new transaction", e);
         }
     }
 
+    /**
+     * Make a new transaction.
+     * @param configuration TransactionConfiguration for new transaction.
+     * @return newly created transaction.
+     */
     public StandardTitanTx newTransaction(TransactionConfiguration configuration) {
         if (!isOpen) ExceptionFactory.graphShutdown();
-        return new StandardTitanTx(this, configuration, beginBackendTransaction(configuration));
+        IndexSerializer.IndexInfoRetriever retriever = indexSerializer.getIndexInforRetriever();
+        StandardTitanTx tx =
+            new StandardTitanTx(this,
+                                configuration,
+                                beginBackendTransaction(configuration, retriever));
+        retriever.setTransaction(tx);
+        return tx;
     }
 
     public IndexSerializer getIndexSerializer() {
