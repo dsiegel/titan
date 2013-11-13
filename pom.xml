@@ -5,7 +5,7 @@
         <artifactId>oss-parent</artifactId>
         <version>7</version>
     </parent>
-    <groupId>com.thinkaurelius.titan</groupId>
+    <groupId>com.knewton.titan</groupId>
     <artifactId>titan</artifactId>
     <version>0.4.1-SNAPSHOT</version>
     <packaging>pom</packaging>
