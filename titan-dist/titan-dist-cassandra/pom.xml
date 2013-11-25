@@ -1,9 +1,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.knewton.titan</groupId>
+        <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan-dist-parent</artifactId>
-        <version>0.4.1-SNAPSHOT</version>
+        <version>0.4.1-KNEWTON-SNAPSHOT</version>
         <relativePath>../titan-dist-parent/pom.xml</relativePath>
     </parent>
     <packaging>pom</packaging>
@@ -25,13 +25,13 @@
 
             <dependencies>
                 <dependency>
-                    <groupId>com.knewton.titan</groupId>
+                    <groupId>com.thinkaurelius.titan</groupId>
                     <artifactId>titan-cassandra</artifactId>
                     <version>${project.version}</version>
                     <classifier>${titan.classifier}</classifier>
                 </dependency>
                 <dependency>
-                    <groupId>com.knewton.titan</groupId>
+                    <groupId>com.thinkaurelius.titan</groupId>
                     <artifactId>titan-es</artifactId>
                     <version>${project.version}</version>
                     <classifier>${titan.classifier}</classifier>
@@ -42,7 +42,7 @@
                     <version>${jna.version}</version>
                 </dependency>
                 <dependency>
-                    <groupId>com.knewton.titan</groupId>
+                    <groupId>com.thinkaurelius.titan</groupId>
                     <artifactId>titan-cassandra</artifactId>
                     <version>${project.version}</version>
                     <classifier>tests</classifier>

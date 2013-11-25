@@ -1,14 +1,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.knewton.titan</groupId>
+        <groupId>com.thinkaurelius.titan</groupId>
         <artifactId>titan</artifactId>
-        <version>0.4.1-SNAPSHOT</version>
+        <version>0.4.1-KNEWTON-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <packaging>pom</packaging>
     <artifactId>titan-dist-parent</artifactId>
-    <version>0.4.1-SNAPSHOT</version>
+    <version>0.4.1-KNEWTON-SNAPSHOT</version>
     <name>Titan-Dist-Parent</name>
     <url>http://thinkaurelius.github.com/titan/</url>
 
@@ -152,7 +152,7 @@
             <id>aurelius-release</id>
             <dependencies>
                 <dependency>
-                    <groupId>com.knewton.titan</groupId>
+                    <groupId>com.thinkaurelius.titan</groupId>
                     <artifactId>titan-site</artifactId>
                     <classifier>htdocs</classifier>
                     <version>${project.version}</version>

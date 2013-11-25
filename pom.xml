@@ -5,9 +5,9 @@
         <artifactId>oss-parent</artifactId>
         <version>7</version>
     </parent>
-    <groupId>com.knewton.titan</groupId>
+    <groupId>com.thinkaurelius.titan</groupId>
     <artifactId>titan</artifactId>
-    <version>0.4.1-SNAPSHOT</version>
+    <version>0.4.1-KNEWTON-SNAPSHOT</version>
     <packaging>pom</packaging>
     <prerequisites>
         <maven>2.2.1</maven>
@@ -1134,4 +1134,17 @@
             </modules>
         </profile>
     </profiles>
+
+  <distributionManagement>
+    <repository>
+      <id>nexus</id>
+      <url>https://nexus.knewton.net/nexus/content/repositories/releases</url>
+    </repository>
+    <snapshotRepository>
+      <id>nexus</id>
+      <name>Internal Snapshots</name>
+      <url>https://nexus.knewton.net/nexus/content/repositories/snapshots</url>
+    </snapshotRepository>
+  </distributionManagement>
+
 </project>

@@ -9,6 +9,8 @@ target/
 /lib/
 /log/
 *.bak
+*.kak
+*.*~
 # When executing tests in alphabetical order, Maven generates temporary
 # files with names like this:
 #
