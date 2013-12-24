@@ -34,7 +34,7 @@ import com.thinkaurelius.titan.graphdb.transaction.addedrelations.SimpleBufferAd
 import com.thinkaurelius.titan.graphdb.transaction.indexcache.ConcurrentIndexCache;
 import com.thinkaurelius.titan.graphdb.transaction.indexcache.IndexCache;
 import com.thinkaurelius.titan.graphdb.transaction.indexcache.SimpleIndexCache;
-import com.thinkaurelius.titan.graphdb.transaction.vertexcache.LRUVertexCache;
+import com.thinkaurelius.titan.graphdb.transaction.vertexcache.GuavaVertexCache;
 import com.thinkaurelius.titan.graphdb.transaction.vertexcache.VertexCache;
 import com.thinkaurelius.titan.graphdb.types.StandardKeyMaker;
 import com.thinkaurelius.titan.graphdb.types.StandardLabelMaker;
@@ -176,7 +176,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
             newVertexIndexEntries = new SimpleIndexCache();
         } else {
             addedRelations = new ConcurrentBufferAddedRelations();
-            concurrencyLevel = 4;
+            concurrencyLevel = 1; //TODO: should we increase this?
             typeCache = new NonBlockingHashMap<String, Long>();
             newVertexIndexEntries = new ConcurrentIndexCache();
         }
@@ -184,7 +184,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         externalVertexRetriever = new VertexConstructor(config.hasVerifyExternalVertexExistence());
         internalVertexRetriever = new VertexConstructor(config.hasVerifyInternalVertexExistence());
 
-        vertexCache = new LRUVertexCache(config.getVertexCacheSize());
+        vertexCache = new GuavaVertexCache(config.getVertexCacheSize(),concurrencyLevel);
         indexCache = CacheBuilder.newBuilder().weigher(new Weigher<IndexQuery, List<Object>>() {
             @Override
             public int weigh(IndexQuery q, List<Object> r) {
@@ -248,6 +248,10 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
 
     public BackendTransaction getTxHandle() {
         return txHandle;
+    }
+
+    public EdgeSerializer getEdgeSerializer() {
+        return edgeSerializer;
     }
 
     /*
@@ -317,7 +321,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
     public TitanVertex addVertex(Long vertexId) {
         verifyWriteAccess();
         if (vertexId != null && !graph.getConfiguration().allowVertexIdSetting()) {
-            log.warn("Provided vertex id [{}] is ignored because vertex id setting is not enabled", vertexId);
+            log.info("Provided vertex id [{}] is ignored because vertex id setting is not enabled", vertexId);
             vertexId = null;
         }
         Preconditions.checkArgument(vertexId != null || !graph.getConfiguration().allowVertexIdSetting(), "Must provide vertex id");
@@ -998,7 +1002,7 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
      */
     protected void saveModifiedRelations(Collection<InternalRelation> added,
                                          Collection<InternalRelation> deleted) {
-        graph.save(added, deleted, this);
+        graph.commit(added, deleted, this);
     }
 
     @Override
@@ -1007,8 +1011,9 @@ public class StandardTitanTx extends TitanBlueprintsTransaction {
         try {
             if (hasModifications()) {
                 saveModifiedRelations(addedRelations.getAll(), deletedRelations.values());
+            } else {
+                txHandle.commit();
             }
-            txHandle.commit();
         } catch (Exception e) {
             try {
                 txHandle.rollback();

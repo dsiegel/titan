@@ -23,6 +23,7 @@ import com.thinkaurelius.titan.diskstorage.util.RecordIterator;
 import com.thinkaurelius.titan.graphdb.blueprints.TitanBlueprintsGraph;
 import com.thinkaurelius.titan.graphdb.blueprints.TitanFeatures;
 import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
+import com.thinkaurelius.titan.graphdb.database.cache.StoreCache;
 import com.thinkaurelius.titan.graphdb.database.idassigner.VertexIDAssigner;
 import com.thinkaurelius.titan.graphdb.database.idhandling.IDHandler;
 import com.thinkaurelius.titan.graphdb.database.serialize.AttributeHandling;
@@ -73,6 +74,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
 
     public final SliceQuery vertexExistenceQuery;
 
+    private final RelationQueryCache relationCache;
+    private final StoreCache edgeStoreCache;
+
     public StandardTitanGraph(GraphDatabaseConfiguration configuration) {
         this.config = configuration;
         this.backend = configuration.getBackend();
@@ -86,7 +90,8 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         this.indexSerializer = new IndexSerializer(this.serializer, this.backend.getIndexInformation());
         this.edgeSerializer = new EdgeSerializer(this.serializer);
         this.vertexExistenceQuery = edgeSerializer.getQuery(SystemKey.VertexState, Direction.OUT, new EdgeSerializer.TypedInterval[0], null).setLimit(1);
-
+        this.relationCache = new RelationQueryCache(this.edgeSerializer);
+        this.edgeStoreCache = config.getEdgeStoreCache();
         isOpen = true;
     }
 
@@ -106,6 +111,8 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
             super.shutdown();
             idAssigner.close();
             backend.close();
+            edgeStoreCache.close();
+            relationCache.close();
         } catch (StorageException e) {
             throw new TitanException("Could not close storage backend", e);
         } finally {
@@ -184,6 +191,10 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         return serializer;
     }
 
+    public RelationQueryCache getRelationCache() {
+        return relationCache;
+    }
+
     public GraphDatabaseConfiguration getConfiguration() {
         return config;
     }
@@ -228,7 +239,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
 
     public List<Entry> edgeQuery(long vid, SliceQuery query, BackendTransaction tx) {
         Preconditions.checkArgument(vid > 0);
-        return tx.edgeStoreQuery(new KeySliceQuery(IDHandler.getKey(vid), query));
+        return edgeStoreCache.query(new KeySliceQuery(IDHandler.getKey(vid), query),tx);
     }
 
     public List<List<Entry>> edgeMultiQuery(LongArrayList vids, SliceQuery query, BackendTransaction tx) {
@@ -238,7 +249,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
             Preconditions.checkArgument(vids.get(i) > 0);
             vertexIds.add(IDHandler.getKey(vids.get(i)));
         }
-        return tx.edgeStoreMultiQuery(vertexIds, query);
+        return edgeStoreCache.multiQuery(vertexIds, query, tx);
     }
 
 
@@ -248,7 +259,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         idAssigner.assignID(vertex);
     }
 
-    public void save(final Collection<InternalRelation> addedRelations,
+    public void commit(final Collection<InternalRelation> addedRelations,
                      final Collection<InternalRelation> deletedRelations, final StandardTitanTx tx) {
         //Setup
         log.debug("Saving transaction. Added {}, removed {}", addedRelations.size(), deletedRelations.size());
@@ -260,9 +271,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
         if (!tx.getConfiguration().hasAssignIDsImmediately())
             idAssigner.assignIDs(addedRelations);
 
-        Callable<Boolean> persist = new Callable<Boolean>() {
+        Callable<List<StaticBuffer>> persist = new Callable<List<StaticBuffer>>() {
             @Override
-            public Boolean call() throws Exception {
+            public List<StaticBuffer> call() throws Exception {
                 //2. Collect deleted edges
                 ListMultimap<InternalVertex, InternalRelation> mutations = ArrayListMultimap.create();
                 if (deletedRelations != null && !deletedRelations.isEmpty()) {
@@ -318,8 +329,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                 }
 
                 //3. Persist
+                List<StaticBuffer> mutatedVertexKeys = new ArrayList<StaticBuffer>();
                 if (!otherEdgeTypes.isEmpty()) {
-                    persist(otherEdgeTypes, tx);
+                    mutatedVertexKeys.addAll(persist(otherEdgeTypes, tx));
                     mutator.flush();
                     //Register new keys with indexprovider
                     for (InternalType itype : otherEdgeTypes.keySet()) {
@@ -328,8 +340,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                     }
                 }
 
-                if (!mutations.isEmpty()) persist(mutations, tx);
-                return true;
+                if (!mutations.isEmpty()) mutatedVertexKeys.addAll(persist(mutations, tx));
+                mutator.commit();
+                return mutatedVertexKeys;
             }
 
             @Override
@@ -337,17 +350,19 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                 return "PersistingTransaction";
             }
         };
-        BackendOperation.execute(persist, maxWriteRetryAttempts, retryStorageWaitTime);
+        List<StaticBuffer> mutatedVertexKeys = BackendOperation.execute(persist, maxWriteRetryAttempts, retryStorageWaitTime);
+        for (StaticBuffer vertexKey : mutatedVertexKeys) edgeStoreCache.invalidate(vertexKey);
     }
 
 
-    private <V extends InternalVertex> void persist(ListMultimap<V, InternalRelation> mutatedEdges,
+    private <V extends InternalVertex> List<StaticBuffer> persist(ListMultimap<V, InternalRelation> mutatedEdges,
                                                     StandardTitanTx tx) throws StorageException {
         assert mutatedEdges != null && !mutatedEdges.isEmpty();
 
         Collection<V> vertices = mutatedEdges.keySet();
 
         BackendTransaction mutator = tx.getTxHandle();
+        List<StaticBuffer> mutatedKeys = new ArrayList<StaticBuffer>(vertices.size());
         for (V vertex : vertices) {
             Preconditions.checkArgument(vertex.getID() > 0, "Vertex has no id: %s", vertex.getID());
             List<InternalRelation> edges = mutatedEdges.get(vertex);
@@ -366,7 +381,9 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                 }
             }
 
-            mutator.mutateEdges(IDHandler.getKey(vertex.getID()), additions, deletions);
+            StaticBuffer vertexKey = IDHandler.getKey(vertex.getID());
+            mutator.mutateEdges(vertexKey, additions, deletions);
+            if (!vertex.isNew()) mutatedKeys.add(vertexKey);
             //Index Updates
             for (InternalRelation relation : edges) {
                 if (relation.getVertex(0).equals(vertex)) {
@@ -387,7 +404,7 @@ public class StandardTitanGraph extends TitanBlueprintsGraph {
                 }
             }
         }
-
+        return mutatedKeys;
     }
 
 }
