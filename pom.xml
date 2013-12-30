@@ -7,7 +7,7 @@
     </parent>
     <groupId>com.thinkaurelius.titan</groupId>
     <artifactId>titan</artifactId>
-    <version>0.4.1-KNEWTON</version>
+    <version>0.4.1-KNEWTON-1</version>
     <packaging>pom</packaging>
     <prerequisites>
         <maven>2.2.1</maven>
@@ -58,7 +58,7 @@
         <tag>0.4.1</tag>
     </scm>
     <properties>
-        <titan.compatible.versions>0.4.0</titan.compatible.versions>
+        <titan.compatible.versions>0.4.0,0.4.1-SNAPSHOT,0.4.1-KNEWTON,0.4.1-KNEWTON-SNAPSHOT</titan.compatible.versions>
         <tinkerpop.version>2.4.0</tinkerpop.version>
         <junit.version>4.11</junit.version>
         <cassandra.version>1.2.2</cassandra.version>
